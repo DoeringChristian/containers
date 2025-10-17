@@ -39,7 +39,7 @@ pub struct DockerfileInfo {
 impl Lockfile {
     /// Current version of the lockfile format
     const VERSION: u32 = 1;
-    
+
     /// Default lockfile name
     const LOCKFILE_NAME: &'static str = ".containers.lock";
 
@@ -65,14 +65,15 @@ impl Lockfile {
     /// Returns a `Result<Lockfile>` with the loaded or new lockfile, or an error if loading fails.
     pub fn load_or_create(dockerfile_path: &Path) -> Result<Self> {
         let lockfile_path = Self::get_lockfile_path(dockerfile_path)?;
-        
+
         if lockfile_path.exists() {
             let content = fs::read_to_string(&lockfile_path)
                 .with_context(|| format!("Failed to read lockfile: {}", lockfile_path.display()))?;
-            
-            let lockfile: Lockfile = serde_json::from_str(&content)
-                .with_context(|| format!("Failed to parse lockfile: {}", lockfile_path.display()))?;
-            
+
+            let lockfile: Lockfile = serde_json::from_str(&content).with_context(|| {
+                format!("Failed to parse lockfile: {}", lockfile_path.display())
+            })?;
+
             Ok(lockfile)
         } else {
             Ok(Self::new())
@@ -90,13 +91,12 @@ impl Lockfile {
     /// Returns `Ok(())` on success or an error if saving fails.
     pub fn save(&self, dockerfile_path: &Path) -> Result<()> {
         let lockfile_path = Self::get_lockfile_path(dockerfile_path)?;
-        
-        let content = serde_json::to_string_pretty(self)
-            .context("Failed to serialize lockfile")?;
-        
+
+        let content = serde_json::to_string_pretty(self).context("Failed to serialize lockfile")?;
+
         fs::write(&lockfile_path, content)
             .with_context(|| format!("Failed to write lockfile: {}", lockfile_path.display()))?;
-        
+
         Ok(())
     }
 
@@ -127,13 +127,11 @@ impl Lockfile {
     /// or an error if the check fails.
     pub fn has_dockerfile_changed(&self, dockerfile_path: &Path) -> Result<bool> {
         let current_info = DockerfileInfo::from_path(dockerfile_path)?;
-        
+
         match self.dockerfiles.get(dockerfile_path) {
-            Some(stored_info) => {
-                Ok(stored_info.content_hash != current_info.content_hash
-                    || stored_info.modified_time != current_info.modified_time
-                    || stored_info.size != current_info.size)
-            }
+            Some(stored_info) => Ok(stored_info.content_hash != current_info.content_hash
+                || stored_info.modified_time != current_info.modified_time
+                || stored_info.size != current_info.size),
             None => Ok(true), // No previous record means it's changed (new)
         }
     }
@@ -153,7 +151,7 @@ impl Lockfile {
         let dockerfile_dir = dockerfile_path
             .parent()
             .context("Dockerfile has no parent directory")?;
-        
+
         Ok(dockerfile_dir.join(Self::LOCKFILE_NAME))
     }
 }
@@ -171,19 +169,19 @@ impl DockerfileInfo {
     pub fn from_path(path: &Path) -> Result<Self> {
         let content = fs::read(path)
             .with_context(|| format!("Failed to read Dockerfile: {}", path.display()))?;
-        
+
         let metadata = fs::metadata(path)
             .with_context(|| format!("Failed to get Dockerfile metadata: {}", path.display()))?;
-        
+
         let modified_time = metadata
             .modified()
             .context("Failed to get modification time")?
             .duration_since(SystemTime::UNIX_EPOCH)
             .context("Invalid modification time")?
             .as_secs();
-        
+
         let content_hash = Self::calculate_hash(&content);
-        
+
         Ok(Self {
             content_hash,
             modified_time,
