@@ -89,4 +89,3 @@ mod tests {
         assert_eq!(EngineType::default(), EngineType::Podman);
     }
 }
-

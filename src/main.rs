@@ -7,6 +7,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::env;
+
 use std::path::PathBuf;
 
 mod config;
@@ -103,23 +104,28 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
     }
 
     // Handle container lifecycle
+    let current_dir = env::current_dir().context("Failed to get current directory")?;
     if engine.container_exists(&config.container_name)? {
         if engine.container_running(&config.container_name)? {
             println!("Entering running container: {}", config.container_name);
-            engine.exec_container(&config.container_name, &config.custom_command)?;
+            engine.exec_container(&config.container_name, &config.custom_command, &current_dir)?;
         } else {
             println!("Starting existing container: {}", config.container_name);
             engine.start_container(&config.container_name)?;
-            engine.exec_container(&config.container_name, &config.custom_command)?;
+            engine.exec_container(&config.container_name, &config.custom_command, &current_dir)?;
         }
     } else {
         println!("Creating new container: {}", config.container_name);
-        let current_dir = env::current_dir().context("Failed to get current directory")?;
+        let mount_dir = config
+            .dockerfile
+            .parent()
+            .context("Failed to get Dockerfile directory")?;
         engine.create_and_run_container(
             &config.container_name,
             &config.image_name,
-            &current_dir,
+            &mount_dir,
             &config.custom_command,
+            &current_dir,
         )?;
     }
 

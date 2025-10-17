@@ -207,7 +207,11 @@ impl ContainerEngine {
             .arg(image_name)
             .arg("-f")
             .arg(dockerfile)
-            .arg(".")
+            .arg(
+                dockerfile
+                    .parent()
+                    .context("Failed to get Dockerfile directory")?,
+            )
             .status()
             .context("Failed to build image")?;
 
@@ -252,9 +256,18 @@ impl ContainerEngine {
     /// # Returns
     ///
     /// Returns `Ok(())` when the command/shell session ends, or an error if exec fails.
-    pub fn exec_container(&self, container_name: &str, custom_command: &[String]) -> Result<()> {
+    pub fn exec_container(
+        &self,
+        container_name: &str,
+        custom_command: &[String],
+        current_dir: &Path,
+    ) -> Result<()> {
         let mut cmd = Command::new(self.engine_type.as_command());
-        cmd.arg("exec").arg("-it").arg(container_name);
+        cmd.arg("exec")
+            .arg("-it")
+            .arg("-w")
+            .arg(current_dir)
+            .arg(container_name);
 
         if custom_command.is_empty() {
             cmd.arg("/bin/bash");
@@ -304,8 +317,9 @@ impl ContainerEngine {
         &self,
         container_name: &str,
         image_name: &str,
-        current_dir: &Path,
+        mount_dir: &Path,
         custom_command: &[String],
+        current_dir: &Path,
     ) -> Result<()> {
         let mut cmd = Command::new(self.engine_type.as_command());
         cmd.arg("run")
@@ -313,11 +327,7 @@ impl ContainerEngine {
             .arg("--name")
             .arg(container_name)
             .arg("-v")
-            .arg(format!(
-                "{}:{}",
-                current_dir.display(),
-                current_dir.display()
-            ))
+            .arg(format!("{}:{}", mount_dir.display(), mount_dir.display()))
             .arg("-w")
             .arg(current_dir);
 
