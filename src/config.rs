@@ -28,6 +28,8 @@ pub struct Config {
     pub engine_type: EngineType,
     /// Whether to force rebuild the image and recreate the container
     pub update_image: bool,
+    /// Custom command to run in the container (empty means use default shell)
+    pub custom_command: Vec<String>,
 }
 
 impl Config {
@@ -91,6 +93,7 @@ impl Config {
             image_name,
             engine_type,
             update_image: args.update,
+            custom_command: args.command,
         })
     }
 }

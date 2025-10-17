@@ -239,31 +239,42 @@ impl ContainerEngine {
         Ok(())
     }
 
-    /// Executes a bash shell in a running container
+    /// Executes a command in a running container
     ///
-    /// This method creates an interactive bash session inside the specified
-    /// container, allowing the user to interact with the container directly.
+    /// This method executes either a custom command or a default bash shell
+    /// inside the specified container, allowing the user to interact with the container.
     ///
     /// # Arguments
     ///
     /// * `container_name` - The name of the running container to exec into
+    /// * `custom_command` - Optional custom command to run; if empty, uses /bin/bash
     ///
     /// # Returns
     ///
-    /// Returns `Ok(())` when the shell session ends, or an error if exec fails.
-    pub fn exec_container(&self, container_name: &str) -> Result<()> {
-        let status = Command::new(self.engine_type.as_command())
-            .arg("exec")
-            .arg("-it")
-            .arg(container_name)
-            .arg("/bin/bash")
-            .status()
-            .context("Failed to exec into container")?;
+    /// Returns `Ok(())` when the command/shell session ends, or an error if exec fails.
+    pub fn exec_container(&self, container_name: &str, custom_command: &[String]) -> Result<()> {
+        let mut cmd = Command::new(self.engine_type.as_command());
+        cmd.arg("exec").arg("-it").arg(container_name);
+
+        if custom_command.is_empty() {
+            cmd.arg("/bin/bash");
+        } else {
+            for arg in custom_command {
+                cmd.arg(arg);
+            }
+        }
+
+        let status = cmd.status().context("Failed to exec into container")?;
 
         if !status.success() {
+            let command_str = if custom_command.is_empty() {
+                "/bin/bash".to_string()
+            } else {
+                custom_command.join(" ")
+            };
             return Err(ContainerError::CommandFailed(format!(
-                "exec -it {} /bin/bash",
-                container_name
+                "exec -it {} {}",
+                container_name, command_str
             ))
             .into());
         }
@@ -277,13 +288,14 @@ impl ContainerEngine {
     /// - Current directory mounted as a volume at the same path in the container
     /// - Working directory set to the current directory
     /// - NVIDIA GPU support if available
-    /// - Automatic execution of /bin/bash
+    /// - Execution of custom command or default /bin/bash
     ///
     /// # Arguments
     ///
     /// * `container_name` - The name for the new container
     /// * `image_name` - The container image to use
     /// * `current_dir` - The current working directory to mount and use
+    /// * `custom_command` - Optional custom command to run; if empty, uses /bin/bash
     ///
     /// # Returns
     ///
@@ -293,6 +305,7 @@ impl ContainerEngine {
         container_name: &str,
         image_name: &str,
         current_dir: &Path,
+        custom_command: &[String],
     ) -> Result<()> {
         let mut cmd = Command::new(self.engine_type.as_command());
         cmd.arg("run")
@@ -313,7 +326,15 @@ impl ContainerEngine {
             cmd.arg(arg);
         }
 
-        cmd.arg(image_name).arg("/bin/bash");
+        cmd.arg(image_name);
+
+        if custom_command.is_empty() {
+            cmd.arg("/bin/bash");
+        } else {
+            for arg in custom_command {
+                cmd.arg(arg);
+            }
+        }
 
         let status = cmd.status().context("Failed to create and run container")?;
 

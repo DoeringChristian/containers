@@ -33,6 +33,7 @@ EXAMPLES:
   containers mycontainer          Use custom container name
   containers -f custom.dockerfile Use custom Dockerfile
   containers -u                   Update/rebuild image and container
+  containers -- echo hello       Run custom command in container
   CONTAINER_ENGINE=docker containers    Use Docker instead of Podman"
 )]
 struct Args {
@@ -47,6 +48,10 @@ struct Args {
     /// Name for the container (default: based on Dockerfile directory)
     #[arg(value_name = "CONTAINER_NAME")]
     container_name: Option<String>,
+
+    /// Custom command to run in the container (after --)
+    #[arg(last = true)]
+    command: Vec<String>,
 }
 
 /// Main entry point for the container management utility
@@ -101,11 +106,11 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
     if engine.container_exists(&config.container_name)? {
         if engine.container_running(&config.container_name)? {
             println!("Entering running container: {}", config.container_name);
-            engine.exec_container(&config.container_name)?;
+            engine.exec_container(&config.container_name, &config.custom_command)?;
         } else {
             println!("Starting existing container: {}", config.container_name);
             engine.start_container(&config.container_name)?;
-            engine.exec_container(&config.container_name)?;
+            engine.exec_container(&config.container_name, &config.custom_command)?;
         }
     } else {
         println!("Creating new container: {}", config.container_name);
@@ -114,6 +119,7 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
             &config.container_name,
             &config.image_name,
             &current_dir,
+            &config.custom_command,
         )?;
     }
 
