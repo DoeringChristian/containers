@@ -67,13 +67,15 @@ impl Config {
         } else if let Ok(dockerfile) = env::var("DOCKERFILE") {
             PathBuf::from(dockerfile)
         } else {
-            DockerfileLocator::find().unwrap_or_else(|| {
-                let exe_path = env::current_exe().unwrap_or_default();
-                let exe_dir = exe_path
-                    .parent()
-                    .unwrap_or_else(|| std::path::Path::new("."));
-                exe_dir.join("Dockerfile")
-            })
+            DockerfileLocator::find().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No Dockerfile found. Searched from current directory up to home directory.\n\
+                     You can specify a Dockerfile with:\n\
+                     - The -f/--dockerfile flag\n\
+                     - The DOCKERFILE environment variable\n\
+                     - Or create a Dockerfile in the current directory or any parent directory"
+                )
+            })?
         };
 
         // Set container name
