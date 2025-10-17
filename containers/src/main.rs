@@ -1,32 +1,13 @@
-use clap::{Arg, Command};
+use clap::Parser;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::process::{Command as ProcessCommand, Stdio};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = Command::new("containers")
-        .about("Create or enter a container environment")
-        .arg(
-            Arg::new("dockerfile")
-                .short('f')
-                .long("dockerfile")
-                .value_name("PATH")
-                .help("Use specified Dockerfile (default: search current dir upward)"),
-        )
-        .arg(
-            Arg::new("update")
-                .short('u')
-                .long("update")
-                .action(clap::ArgAction::SetTrue)
-                .help("Rebuild image and recreate container"),
-        )
-        .arg(
-            Arg::new("container_name")
-                .value_name("CONTAINER_NAME")
-                .help("Name for the container (default: based on Dockerfile directory)"),
-        )
-        .after_help(
-            "ENVIRONMENT VARIABLES:
+#[derive(Parser)]
+#[command(
+    name = "containers",
+    about = "Create or enter a container environment",
+    after_help = "ENVIRONMENT VARIABLES:
   CONTAINER_NAME          Set default container name
   DOCKERFILE              Set default Dockerfile path
   CONTAINER_ENGINE        Container engine to use (default: podman)
@@ -36,16 +17,31 @@ EXAMPLES:
   containers mycontainer          Use custom container name
   containers -f custom.dockerfile Use custom Dockerfile
   containers -u                   Update/rebuild image and container
-  CONTAINER_ENGINE=docker containers    Use Docker instead of Podman",
-        )
-        .get_matches();
+  CONTAINER_ENGINE=docker containers    Use Docker instead of Podman"
+)]
+struct Args {
+    /// Use specified Dockerfile (default: search current dir upward)
+    #[arg(short, long, value_name = "PATH")]
+    dockerfile: Option<PathBuf>,
 
-    let update_image = matches.get_flag("update");
+    /// Rebuild image and recreate container
+    #[arg(short, long)]
+    update: bool,
+
+    /// Name for the container (default: based on Dockerfile directory)
+    #[arg(value_name = "CONTAINER_NAME")]
+    container_name: Option<String>,
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+
+    let update_image = args.update;
     let container_engine = env::var("CONTAINER_ENGINE").unwrap_or_else(|_| "podman".to_string());
 
     // Find Dockerfile
-    let dockerfile = if let Some(dockerfile) = matches.get_one::<String>("dockerfile") {
-        PathBuf::from(dockerfile)
+    let dockerfile = if let Some(dockerfile) = args.dockerfile {
+        dockerfile
     } else if let Ok(dockerfile) = env::var("DOCKERFILE") {
         PathBuf::from(dockerfile)
     } else {
@@ -58,8 +54,8 @@ EXAMPLES:
 
     // Set container name
     let default_container_name = generate_container_name(&dockerfile);
-    let container_name = if let Some(name) = matches.get_one::<String>("container_name") {
-        name.clone()
+    let container_name = if let Some(name) = args.container_name {
+        name
     } else {
         env::var("CONTAINER_NAME").unwrap_or(default_container_name)
     };
