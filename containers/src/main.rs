@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 mod config;
 mod container;
@@ -10,7 +10,6 @@ mod errors;
 
 use config::Config;
 use container::ContainerEngine;
-use dockerfile::DockerfileLocator;
 
 #[derive(Parser)]
 #[command(

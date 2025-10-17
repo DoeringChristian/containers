@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
 
@@ -41,10 +41,13 @@ impl Config {
             env::var("CONTAINER_NAME").unwrap_or(default_container_name)
         };
 
+        // Generate image name based on Dockerfile location
+        let image_name = format!("{}:latest", generate_container_name(&dockerfile));
+        
         Ok(Self {
             dockerfile,
             container_name,
-            image_name: "dev-env:latest".to_string(),
+            image_name,
             engine_type,
             update_image: args.update,
         })
