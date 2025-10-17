@@ -1,3 +1,9 @@
+//! Container management utility
+//!
+//! This application provides a convenient way to create, manage, and enter container environments
+//! using either Docker or Podman. It automatically searches for Dockerfiles, builds images when
+//! needed, and provides seamless container lifecycle management.
+
 use anyhow::{Context, Result};
 use clap::Parser;
 use std::env;
@@ -11,6 +17,7 @@ mod errors;
 use config::Config;
 use container::ContainerEngine;
 
+/// Command-line arguments structure for the container management utility
 #[derive(Parser)]
 #[command(
     name = "containers",
@@ -41,6 +48,10 @@ struct Args {
     container_name: Option<String>,
 }
 
+/// Main entry point for the container management utility
+///
+/// Parses command-line arguments, creates configuration, initializes the container engine,
+/// and manages the complete container lifecycle.
 fn main() -> Result<()> {
     let args = Args::parse();
     let config = Config::from_args_and_env(args)?;
@@ -50,6 +61,21 @@ fn main() -> Result<()> {
     run_container(&config, &engine).context("Failed to run container")
 }
 
+/// Orchestrates the container lifecycle based on configuration
+///
+/// This function handles:
+/// - Building container images when needed or when update is requested
+/// - Creating new containers or entering existing ones
+/// - Starting stopped containers
+///
+/// # Arguments
+///
+/// * `config` - Application configuration containing container settings
+/// * `engine` - Container engine abstraction for executing container operations
+///
+/// # Returns
+///
+/// Returns `Ok(())` on success, or an error if any container operation fails.
 fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
     // Build image if needed
     if config.dockerfile.exists() {

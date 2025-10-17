@@ -1,3 +1,8 @@
+//! Configuration management for the container utility
+//!
+//! This module handles parsing command-line arguments, environment variables,
+//! and creating a unified configuration structure for the application.
+
 use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
@@ -5,16 +10,48 @@ use std::path::PathBuf;
 use crate::Args;
 use crate::dockerfile::DockerfileLocator;
 
+/// Application configuration structure
+///
+/// Contains all settings needed to run containers, including paths,
+/// names, and behavioral flags. Configuration is built from command-line
+/// arguments and environment variables.
 #[derive(Debug)]
 pub struct Config {
+    /// Path to the Dockerfile to use for building the container image
     pub dockerfile: PathBuf,
+    /// Name of the container to create or connect to
     pub container_name: String,
+    /// Name of the container image to build or use
     pub image_name: String,
+    /// Container engine type (docker or podman)
     pub engine_type: String,
+    /// Whether to force rebuild the image and recreate the container
     pub update_image: bool,
 }
 
 impl Config {
+    /// Creates a new configuration from command-line arguments and environment variables
+    ///
+    /// This method combines CLI arguments with environment variable defaults to create
+    /// a complete configuration. It handles:
+    /// - Dockerfile location detection (CLI arg > env var > automatic search > fallback)
+    /// - Container name generation based on Dockerfile location
+    /// - Image name generation based on Dockerfile location
+    /// - Container engine selection (env var or default to podman)
+    ///
+    /// # Arguments
+    ///
+    /// * `args` - Parsed command-line arguments
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result<Config>` with the complete configuration or an error.
+    ///
+    /// # Environment Variables
+    ///
+    /// * `CONTAINER_ENGINE` - Container engine to use (docker/podman, defaults to podman)
+    /// * `DOCKERFILE` - Path to Dockerfile (overridden by CLI arg)
+    /// * `CONTAINER_NAME` - Container name (overridden by CLI arg)
     pub fn from_args_and_env(args: Args) -> Result<Self> {
         let engine_type = env::var("CONTAINER_ENGINE").unwrap_or_else(|_| "podman".to_string());
 
@@ -54,6 +91,25 @@ impl Config {
     }
 }
 
+/// Generates a container name based on the Dockerfile's directory path
+///
+/// Takes the parent directory of the Dockerfile and converts it to a valid
+/// container name by replacing directory separators with dashes and removing
+/// the leading slash.
+///
+/// # Arguments
+///
+/// * `dockerfile` - Path to the Dockerfile
+///
+/// # Returns
+///
+/// A string suitable for use as a container name
+///
+/// # Examples
+///
+/// * `/home/user/project/Dockerfile` → `home-user-project`
+/// * `/var/www/app/Dockerfile` → `var-www-app`
+/// * `./Dockerfile` → `.`
 fn generate_container_name(dockerfile: &std::path::Path) -> String {
     let dir = dockerfile
         .parent()
