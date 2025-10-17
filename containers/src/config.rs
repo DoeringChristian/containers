@@ -43,7 +43,7 @@ impl Config {
 
         // Generate image name based on Dockerfile location
         let image_name = format!("{}:latest", generate_container_name(&dockerfile));
-        
+
         Ok(Self {
             dockerfile,
             container_name,
@@ -66,4 +66,3 @@ fn generate_container_name(dockerfile: &std::path::Path) -> String {
         .unwrap_or(&path_str)
         .replace('/', "-")
 }
-
