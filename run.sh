@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# Configuration
-CONTAINER_NAME="dev-env"
+# Parse arguments and environment variables
+CONTAINER_NAME="${CONTAINER_NAME:-dev-env}"
+if [ "$1" != "" ]; then
+    CONTAINER_NAME="$1"
+fi
 IMAGE_NAME="dev-env:latest"
 DOCKERFILE="${DOCKERFILE:-Dockerfile}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-podman}"
@@ -18,7 +21,7 @@ fi
 
 # Build image if Dockerfile exists and image doesn't exist
 if [ -f "$DOCKERFILE" ]; then
-    if ! $CONTAINER_ENGINE images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${IMAGE_NAME}$"; then
+    if ! $CONTAINER_ENGINE images --format "table {{.Repository}}:{{.Tag}}" | grep -q "${IMAGE_NAME}$\|localhost/${IMAGE_NAME}$"; then
         echo "Building image: ${IMAGE_NAME}"
         $CONTAINER_ENGINE build -t ${IMAGE_NAME} -f ${DOCKERFILE} .
     fi
