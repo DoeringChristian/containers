@@ -8,6 +8,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::{Command, Stdio};
 
+use crate::engine::EngineType;
 use crate::errors::ContainerError;
 
 /// Container engine abstraction
@@ -17,7 +18,7 @@ use crate::errors::ContainerError;
 /// handles engine-specific argument differences.
 pub struct ContainerEngine {
     /// The container engine type (docker or podman)
-    engine_type: String,
+    engine_type: EngineType,
     /// NVIDIA GPU support arguments for this engine
     nvidia_args: Vec<String>,
 }
@@ -30,7 +31,7 @@ impl ContainerEngine {
     ///
     /// # Arguments
     ///
-    /// * `engine_type` - The container engine to use ("docker" or "podman")
+    /// * `engine_type` - The container engine to use
     ///
     /// # Returns
     ///
@@ -40,15 +41,16 @@ impl ContainerEngine {
     ///
     /// Will return an error if the specified container engine is not installed
     /// or not accessible in the system PATH.
-    pub fn new(engine_type: &str) -> Result<Self> {
+    pub fn new(engine_type: EngineType) -> Result<Self> {
         // Verify engine exists
-        which::which(engine_type)
-            .with_context(|| format!("Container engine '{}' not found", engine_type))?;
+        let command = engine_type.as_command();
+        which::which(command)
+            .with_context(|| format!("Container engine '{}' not found", command))?;
 
-        let nvidia_args = Self::detect_nvidia_support(engine_type);
+        let nvidia_args = Self::detect_nvidia_support(&engine_type);
 
         Ok(Self {
-            engine_type: engine_type.to_string(),
+            engine_type,
             nvidia_args,
         })
     }
@@ -60,13 +62,13 @@ impl ContainerEngine {
     ///
     /// # Arguments
     ///
-    /// * `engine_type` - The container engine type ("docker" or "podman")
+    /// * `engine_type` - The container engine type
     ///
     /// # Returns
     ///
     /// A vector of arguments to pass to the container engine for GPU support,
     /// or an empty vector if no GPU support is detected.
-    fn detect_nvidia_support(engine_type: &str) -> Vec<String> {
+    fn detect_nvidia_support(engine_type: &EngineType) -> Vec<String> {
         let mut args = Vec::new();
 
         // Check if nvidia-smi exists and works
@@ -78,17 +80,16 @@ impl ContainerEngine {
             {
                 if status.success() {
                     match engine_type {
-                        "docker" => {
+                        EngineType::Docker => {
                             args.push("--gpus".to_string());
                             args.push("all".to_string());
                         }
-                        "podman" => {
+                        EngineType::Podman => {
                             args.push("--device".to_string());
                             args.push("nvidia.com/gpu=all".to_string());
                             args.push("--security-opt".to_string());
                             args.push("label=disable".to_string());
                         }
-                        _ => {}
                     }
                 }
             }
@@ -108,7 +109,7 @@ impl ContainerEngine {
     /// Returns `Ok(true)` if the image exists, `Ok(false)` if it doesn't,
     /// or an error if the check fails.
     pub fn image_exists(&self, image_name: &str) -> Result<bool> {
-        let output = Command::new(&self.engine_type)
+        let output = Command::new(self.engine_type.as_command())
             .arg("images")
             .arg("--format")
             .arg("table {{.Repository}}:{{.Tag}}")
@@ -132,7 +133,7 @@ impl ContainerEngine {
     /// Returns `Ok(true)` if the container exists, `Ok(false)` if it doesn't,
     /// or an error if the check fails.
     pub fn container_exists(&self, container_name: &str) -> Result<bool> {
-        let output = Command::new(&self.engine_type)
+        let output = Command::new(self.engine_type.as_command())
             .arg("ps")
             .arg("-a")
             .arg("--format")
@@ -155,7 +156,7 @@ impl ContainerEngine {
     /// Returns `Ok(true)` if the container is running, `Ok(false)` if it's not,
     /// or an error if the check fails.
     pub fn container_running(&self, container_name: &str) -> Result<bool> {
-        let output = Command::new(&self.engine_type)
+        let output = Command::new(self.engine_type.as_command())
             .arg("ps")
             .arg("--format")
             .arg("table {{.Names}}")
@@ -176,7 +177,7 @@ impl ContainerEngine {
     ///
     /// Returns `Ok(())` on success or an error if the removal fails.
     pub fn remove_container(&self, container_name: &str) -> Result<()> {
-        let status = Command::new(&self.engine_type)
+        let status = Command::new(self.engine_type.as_command())
             .arg("rm")
             .arg("-f")
             .arg(container_name)
@@ -200,7 +201,7 @@ impl ContainerEngine {
     ///
     /// Returns `Ok(())` on success or an error if the build fails.
     pub fn build_image(&self, image_name: &str, dockerfile: &Path) -> Result<()> {
-        let status = Command::new(&self.engine_type)
+        let status = Command::new(self.engine_type.as_command())
             .arg("build")
             .arg("-t")
             .arg(image_name)
@@ -226,7 +227,7 @@ impl ContainerEngine {
     ///
     /// Returns `Ok(())` on success or an error if starting fails.
     pub fn start_container(&self, container_name: &str) -> Result<()> {
-        let status = Command::new(&self.engine_type)
+        let status = Command::new(self.engine_type.as_command())
             .arg("start")
             .arg(container_name)
             .status()
@@ -251,7 +252,7 @@ impl ContainerEngine {
     ///
     /// Returns `Ok(())` when the shell session ends, or an error if exec fails.
     pub fn exec_container(&self, container_name: &str) -> Result<()> {
-        let status = Command::new(&self.engine_type)
+        let status = Command::new(self.engine_type.as_command())
             .arg("exec")
             .arg("-it")
             .arg(container_name)
@@ -293,7 +294,7 @@ impl ContainerEngine {
         image_name: &str,
         current_dir: &Path,
     ) -> Result<()> {
-        let mut cmd = Command::new(&self.engine_type);
+        let mut cmd = Command::new(self.engine_type.as_command());
         cmd.arg("run")
             .arg("-it")
             .arg("--name")

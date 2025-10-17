@@ -12,6 +12,7 @@ use std::path::PathBuf;
 mod config;
 mod container;
 mod dockerfile;
+mod engine;
 mod errors;
 
 use config::Config;
@@ -56,7 +57,7 @@ fn main() -> Result<()> {
     let args = Args::parse();
     let config = Config::from_args_and_env(args)?;
 
-    let engine = ContainerEngine::new(&config.engine_type)?;
+    let engine = ContainerEngine::new(config.engine_type)?;
 
     run_container(&config, &engine).context("Failed to run container")
 }

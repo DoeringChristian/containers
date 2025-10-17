@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 use crate::Args;
 use crate::dockerfile::DockerfileLocator;
+use crate::engine::EngineType;
 
 /// Application configuration structure
 ///
@@ -24,7 +25,7 @@ pub struct Config {
     /// Name of the container image to build or use
     pub image_name: String,
     /// Container engine type (docker or podman)
-    pub engine_type: String,
+    pub engine_type: EngineType,
     /// Whether to force rebuild the image and recreate the container
     pub update_image: bool,
 }
@@ -53,7 +54,10 @@ impl Config {
     /// * `DOCKERFILE` - Path to Dockerfile (overridden by CLI arg)
     /// * `CONTAINER_NAME` - Container name (overridden by CLI arg)
     pub fn from_args_and_env(args: Args) -> Result<Self> {
-        let engine_type = env::var("CONTAINER_ENGINE").unwrap_or_else(|_| "podman".to_string());
+        let engine_type = env::var("CONTAINER_ENGINE")
+            .unwrap_or_else(|_| "podman".to_string())
+            .parse::<EngineType>()
+            .unwrap_or_default();
 
         // Find Dockerfile
         let dockerfile = if let Some(dockerfile) = args.dockerfile {
