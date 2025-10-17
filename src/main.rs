@@ -15,9 +15,11 @@ mod container;
 mod dockerfile;
 mod engine;
 mod errors;
+mod lockfile;
 
 use config::Config;
 use container::ContainerEngine;
+use lockfile::Lockfile;
 
 /// Command-line arguments structure for the container management utility
 #[derive(Parser)]
@@ -71,9 +73,11 @@ fn main() -> Result<()> {
 /// Orchestrates the container lifecycle based on configuration
 ///
 /// This function handles:
-/// - Building container images when needed or when update is requested
+/// - Checking lockfile for Dockerfile changes
+/// - Building container images when needed, when update is requested, or when Dockerfile changed
 /// - Creating new containers or entering existing ones
 /// - Starting stopped containers
+/// - Updating lockfile after successful builds
 ///
 /// # Arguments
 ///
@@ -86,20 +90,34 @@ fn main() -> Result<()> {
 fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
     // Build image if needed
     if config.dockerfile.exists() {
-        let should_build = config.update_image || !engine.image_exists(&config.image_name)?;
+        // Load or create lockfile to check for Dockerfile changes
+        let mut lockfile = Lockfile::load_or_create(&config.dockerfile)?;
+        let dockerfile_changed = lockfile.has_dockerfile_changed(&config.dockerfile)?;
+        
+        let should_build = config.update_image 
+            || !engine.image_exists(&config.image_name)? 
+            || dockerfile_changed;
 
         if should_build {
             if config.update_image {
                 println!("Updating image: {}", config.image_name);
-                if engine.container_exists(&config.container_name)? {
-                    println!("Removing existing container: {}", config.container_name);
-                    engine.remove_container(&config.container_name)?;
-                }
+            } else if dockerfile_changed {
+                println!("Dockerfile changed, rebuilding image: {}", config.image_name);
             } else {
                 println!("Building image: {}", config.image_name);
             }
 
+            // Remove existing container if we're rebuilding due to changes
+            if (config.update_image || dockerfile_changed) && engine.container_exists(&config.container_name)? {
+                println!("Removing existing container: {}", config.container_name);
+                engine.remove_container(&config.container_name)?;
+            }
+
             engine.build_image(&config.image_name, &config.dockerfile)?;
+            
+            // Update lockfile with new Dockerfile state after successful build
+            lockfile.update_dockerfile_info(&config.dockerfile)?;
+            lockfile.save(&config.dockerfile)?;
         }
     }
 
