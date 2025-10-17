@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use std::env;
 use std::path::PathBuf;
 
-use crate::dockerfile::DockerfileLocator;
 use crate::Args;
+use crate::dockerfile::DockerfileLocator;
 
 #[derive(Debug)]
 pub struct Config {
@@ -17,7 +17,7 @@ pub struct Config {
 impl Config {
     pub fn from_args_and_env(args: Args) -> Result<Self> {
         let engine_type = env::var("CONTAINER_ENGINE").unwrap_or_else(|_| "podman".to_string());
-        
+
         // Find Dockerfile
         let dockerfile = if let Some(dockerfile) = args.dockerfile {
             dockerfile
@@ -26,7 +26,9 @@ impl Config {
         } else {
             DockerfileLocator::find().unwrap_or_else(|| {
                 let exe_path = env::current_exe().unwrap_or_default();
-                let exe_dir = exe_path.parent().unwrap_or_else(|| std::path::Path::new("."));
+                let exe_dir = exe_path
+                    .parent()
+                    .unwrap_or_else(|| std::path::Path::new("."));
                 exe_dir.join("Dockerfile")
             })
         };
@@ -50,12 +52,15 @@ impl Config {
 }
 
 fn generate_container_name(dockerfile: &std::path::Path) -> String {
-    let dir = dockerfile.parent().unwrap_or_else(|| std::path::Path::new("."));
+    let dir = dockerfile
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."));
     let path_str = dir.to_string_lossy();
-    
+
     // Remove leading slash and replace slashes with dashes
     path_str
         .strip_prefix('/')
         .unwrap_or(&path_str)
         .replace('/', "-")
 }
+

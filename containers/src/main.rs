@@ -45,9 +45,9 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
     let config = Config::from_args_and_env(args)?;
-    
+
     let engine = ContainerEngine::new(&config.engine_type)?;
-    
+
     run_container(&config, &engine).context("Failed to run container")
 }
 
@@ -55,7 +55,7 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
     // Build image if needed
     if config.dockerfile.exists() {
         let should_build = config.update_image || !engine.image_exists(&config.image_name)?;
-        
+
         if should_build {
             if config.update_image {
                 println!("Updating image: {}", config.image_name);
@@ -66,7 +66,7 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
             } else {
                 println!("Building image: {}", config.image_name);
             }
-            
+
             engine.build_image(&config.image_name, &config.dockerfile)?;
         }
     }
@@ -93,3 +93,4 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
 
     Ok(())
 }
+

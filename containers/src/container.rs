@@ -14,9 +14,9 @@ impl ContainerEngine {
         // Verify engine exists
         which::which(engine_type)
             .with_context(|| format!("Container engine '{}' not found", engine_type))?;
-            
+
         let nvidia_args = Self::detect_nvidia_support(engine_type);
-        
+
         Ok(Self {
             engine_type: engine_type.to_string(),
             nvidia_args,
@@ -25,7 +25,7 @@ impl ContainerEngine {
 
     fn detect_nvidia_support(engine_type: &str) -> Vec<String> {
         let mut args = Vec::new();
-        
+
         // Check if nvidia-smi exists and works
         if which::which("nvidia-smi").is_ok() {
             if let Ok(status) = Command::new("nvidia-smi")
@@ -50,7 +50,7 @@ impl ContainerEngine {
                 }
             }
         }
-        
+
         args
     }
 
@@ -147,7 +147,11 @@ impl ContainerEngine {
             .context("Failed to exec into container")?;
 
         if !status.success() {
-            return Err(ContainerError::CommandFailed(format!("exec -it {} /bin/bash", container_name)).into());
+            return Err(ContainerError::CommandFailed(format!(
+                "exec -it {} /bin/bash",
+                container_name
+            ))
+            .into());
         }
         Ok(())
     }
@@ -164,7 +168,11 @@ impl ContainerEngine {
             .arg("--name")
             .arg(container_name)
             .arg("-v")
-            .arg(format!("{}:{}", current_dir.display(), current_dir.display()))
+            .arg(format!(
+                "{}:{}",
+                current_dir.display(),
+                current_dir.display()
+            ))
             .arg("-w")
             .arg(current_dir);
 
@@ -178,8 +186,11 @@ impl ContainerEngine {
         let status = cmd.status().context("Failed to create and run container")?;
 
         if !status.success() {
-            return Err(ContainerError::CommandFailed(format!("run container {}", container_name)).into());
+            return Err(
+                ContainerError::CommandFailed(format!("run container {}", container_name)).into(),
+            );
         }
         Ok(())
     }
 }
+
