@@ -1,5 +1,32 @@
 #!/bin/bash
 
+# Help function
+show_help() {
+    echo "Usage: $0 [OPTIONS] [CONTAINER_NAME]"
+    echo ""
+    echo "Create or enter a container environment."
+    echo ""
+    echo "OPTIONS:"
+    echo "  -f, --dockerfile PATH    Use specified Dockerfile (default: search current dir upward)"
+    echo "  -u, --update            Rebuild image and recreate container"
+    echo "  -h, --help              Show this help message"
+    echo ""
+    echo "ARGUMENTS:"
+    echo "  CONTAINER_NAME          Name for the container (default: based on Dockerfile directory)"
+    echo ""
+    echo "ENVIRONMENT VARIABLES:"
+    echo "  CONTAINER_NAME          Set default container name"
+    echo "  DOCKERFILE              Set default Dockerfile path"
+    echo "  CONTAINER_ENGINE        Container engine to use (default: podman)"
+    echo ""
+    echo "EXAMPLES:"
+    echo "  $0                      Use default settings"
+    echo "  $0 mycontainer          Use custom container name"
+    echo "  $0 -f custom.dockerfile Use custom Dockerfile"
+    echo "  $0 -u                   Update/rebuild image and container"
+    echo "  CONTAINER_ENGINE=docker $0    Use Docker instead of Podman"
+}
+
 # Parse arguments and environment variables
 UPDATE_IMAGE=false
 
@@ -40,6 +67,10 @@ while [[ $# -gt 0 ]]; do
     -u | --update)
         UPDATE_IMAGE=true
         shift
+        ;;
+    -h | --help)
+        show_help
+        exit 0
         ;;
     *)
         CONTAINER_NAME="$1"
