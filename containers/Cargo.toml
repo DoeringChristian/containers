@@ -7,3 +7,5 @@ edition = "2024"
 clap = { version = "4.0", features = ["derive"] }
 home = "0.5"
 which = "4.0"
+anyhow = "1.0"
+thiserror = "1.0"
