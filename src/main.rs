@@ -19,7 +19,6 @@ mod lockfile;
 
 use config::Config;
 use container::ContainerEngine;
-use lockfile::Lockfile;
 
 /// Command-line arguments structure for the container management utility
 #[derive(Parser)]
@@ -63,11 +62,11 @@ struct Args {
 /// and manages the complete container lifecycle.
 fn main() -> Result<()> {
     let args = Args::parse();
-    let config = Config::from_args_and_env(args)?;
+    let mut config = Config::from_args_and_env(args)?;
 
     let engine = ContainerEngine::new(config.engine_type)?;
 
-    run_container(&config, &engine).context("Failed to run container")
+    run_container(&mut config, &engine).context("Failed to run container")
 }
 
 /// Orchestrates the container lifecycle based on configuration
@@ -81,18 +80,17 @@ fn main() -> Result<()> {
 ///
 /// # Arguments
 ///
-/// * `config` - Application configuration containing container settings
+/// * `config` - Application configuration containing container settings (mutable for lockfile updates)
 /// * `engine` - Container engine abstraction for executing container operations
 ///
 /// # Returns
 ///
 /// Returns `Ok(())` on success, or an error if any container operation fails.
-fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
+fn run_container(config: &mut Config, engine: &ContainerEngine) -> Result<()> {
     // Build image if needed
     if config.dockerfile.exists() {
-        // Load or create lockfile to check for Dockerfile changes
-        let mut lockfile = Lockfile::load_or_create(&config.dockerfile)?;
-        let dockerfile_changed = lockfile.has_dockerfile_changed(&config.dockerfile)?;
+        // Check lockfile for Dockerfile changes
+        let dockerfile_changed = config.lockfile.has_dockerfile_changed(&config.dockerfile)?;
 
         let should_build =
             config.update_image || !engine.image_exists(&config.image_name)? || dockerfile_changed;
@@ -120,8 +118,8 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
             engine.build_image(&config.image_name, &config.dockerfile)?;
 
             // Update lockfile with new Dockerfile state after successful build
-            lockfile.update_dockerfile_info(&config.dockerfile)?;
-            lockfile.save(&config.dockerfile)?;
+            config.lockfile.update_dockerfile_info(&config.dockerfile)?;
+            config.lockfile.save(&config.dockerfile)?;
         }
     }
 
@@ -130,11 +128,11 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
     if engine.container_exists(&config.container_name)? {
         if engine.container_running(&config.container_name)? {
             println!("Entering running container: {}", config.container_name);
-            engine.exec_container(&config.container_name, &config.custom_command, &current_dir)?;
+            engine.exec_container(&config.container_name, &config.custom_command, &current_dir, config.user_uid, config.user_gid)?;
         } else {
             println!("Starting existing container: {}", config.container_name);
             engine.start_container(&config.container_name)?;
-            engine.exec_container(&config.container_name, &config.custom_command, &current_dir)?;
+            engine.exec_container(&config.container_name, &config.custom_command, &current_dir, config.user_uid, config.user_gid)?;
         }
     } else {
         println!("Creating new container: {}", config.container_name);
@@ -148,6 +146,8 @@ fn run_container(config: &Config, engine: &ContainerEngine) -> Result<()> {
             &mount_dir,
             &config.custom_command,
             &current_dir,
+            config.user_uid,
+            config.user_gid,
         )?;
     }
 

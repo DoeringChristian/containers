@@ -2,9 +2,9 @@
   "version": 1,
   "dockerfiles": {
     "/home/doeringc/workspace/containers/Dockerfile": {
-      "content_hash": "4642ae280dbca521fba0b77073247321c4ae711f7bfee43a2fc3e7d39e205adb",
-      "modified_time": 1760721722,
-      "size": 812
+      "content_hash": "40d2152e446480ec4d5c6876d7a28d57a19042f865db071292cdd1a736c21b3f",
+      "modified_time": 1760967852,
+      "size": 1609
     }
   }
 }

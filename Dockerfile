@@ -35,10 +35,28 @@ ENV CXX=clang++-18
 # Create symlinks for python
 RUN ln -sf /usr/bin/python3 /usr/bin/python
 
+# Install Rust globally (will be accessible to all users)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile default
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
-# Set working directory
-WORKDIR /workspace
+# Create a non-root user with matching host UID/GID
+ARG UID=1000
+ARG GID=1000
+RUN if getent passwd $UID > /dev/null 2>&1; then \
+        # User with this UID already exists, use it
+        USER_NAME=$(getent passwd $UID | cut -d: -f1); \
+    else \
+        # Create new user
+        if getent group $GID > /dev/null 2>&1; then \
+            GROUP_NAME=$(getent group $GID | cut -d: -f1); \
+        else \
+            groupadd -g $GID claude-user && GROUP_NAME=claude-user; \
+        fi && \
+        useradd -m -s /bin/bash -u $UID -g $GROUP_NAME claude-user && \
+        USER_NAME=claude-user; \
+    fi && \
+    echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-CMD ["/bin/bash"]

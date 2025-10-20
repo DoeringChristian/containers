@@ -252,6 +252,9 @@ impl ContainerEngine {
     ///
     /// * `container_name` - The name of the running container to exec into
     /// * `custom_command` - Optional custom command to run; if empty, uses /bin/bash
+    /// * `current_dir` - The working directory to use inside the container
+    /// * `user_uid` - The user ID to set via environment variable
+    /// * `user_gid` - The group ID to set via environment variable
     ///
     /// # Returns
     ///
@@ -261,10 +264,18 @@ impl ContainerEngine {
         container_name: &str,
         custom_command: &[String],
         current_dir: &Path,
+        user_uid: u32,
+        user_gid: u32,
     ) -> Result<()> {
         let mut cmd = Command::new(self.engine_type.as_command());
         cmd.arg("exec")
             .arg("-it")
+            .arg("--user")
+            .arg(format!("{}:{}", user_uid, user_gid))
+            .arg("-e")
+            .arg(format!("UID={}", user_uid))
+            .arg("-e")
+            .arg(format!("GID={}", user_gid))
             .arg("-w")
             .arg(current_dir)
             .arg(container_name);
@@ -301,14 +312,18 @@ impl ContainerEngine {
     /// - Current directory mounted as a volume at the same path in the container
     /// - Working directory set to the current directory
     /// - NVIDIA GPU support if available
+    /// - User mapping via environment variables
     /// - Execution of custom command or default /bin/bash
     ///
     /// # Arguments
     ///
     /// * `container_name` - The name for the new container
     /// * `image_name` - The container image to use
-    /// * `current_dir` - The current working directory to mount and use
+    /// * `mount_dir` - The directory to mount in the container
     /// * `custom_command` - Optional custom command to run; if empty, uses /bin/bash
+    /// * `current_dir` - The current working directory to use inside the container
+    /// * `user_uid` - The user ID to set via environment variable
+    /// * `user_gid` - The group ID to set via environment variable
     ///
     /// # Returns
     ///
@@ -320,12 +335,20 @@ impl ContainerEngine {
         mount_dir: &Path,
         custom_command: &[String],
         current_dir: &Path,
+        user_uid: u32,
+        user_gid: u32,
     ) -> Result<()> {
         let mut cmd = Command::new(self.engine_type.as_command());
         cmd.arg("run")
             .arg("-it")
             .arg("--name")
             .arg(container_name)
+            .arg("--user")
+            .arg(format!("{}:{}", user_uid, user_gid))
+            .arg("-e")
+            .arg(format!("UID={}", user_uid))
+            .arg("-e")
+            .arg(format!("GID={}", user_gid))
             .arg("-v")
             .arg(format!("{}:{}", mount_dir.display(), mount_dir.display()))
             .arg("-w")
