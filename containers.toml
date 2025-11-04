@@ -1,0 +1,7 @@
+[containers.default]
+name = "default"
+base_image = "ubuntu:latest"
+gpu = true
+interactive = true
+tty = true
+remove = true

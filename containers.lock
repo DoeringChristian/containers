@@ -1,0 +1,7 @@
+version = "1.0"
+
+[containers.default]
+image_hash = "default-0bb7b4e4"
+base_image = "ubuntu:latest"
+dependencies = []
+config_hash = "0bb7b4e40455a3a4cfa26f1a15f16c432a7dfc8a2d04876f716694d4ea5f6c3c"

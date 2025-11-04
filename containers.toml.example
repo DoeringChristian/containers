@@ -1,0 +1,65 @@
+# Example containers.toml configuration file
+
+[containers.default]
+name = "default"
+base_image = "ubuntu:22.04"
+gpu = true
+interactive = true
+tty = true
+remove = true
+
+# Default command when no command is specified
+command = ["claude", "--dangerously-skip-permissions", "--max-turns", "99999999"]
+
+# Environment variables
+[containers.default.environment]
+CUDA_VISIBLE_DEVICES = "0"
+PYTHONUNBUFFERED = "1"
+
+# Volume mounts (if not specified, defaults to current directory and Claude configs)
+[[containers.default.volumes]]
+source = "."
+target = "/home/code/work"
+read_only = false
+
+[[containers.default.volumes]]
+source = "$HOME/.claude"
+target = "/home/code/.claude"
+read_only = false
+
+# Tmpfs mounts
+[[containers.default.tmpfs]]
+target = "/home/code/work/build"
+size = "1m"
+read_only = true
+
+# Dependencies to install in the container
+[[containers.default.dependencies]]
+package = "python3"
+source = "apt"
+
+[[containers.default.dependencies]]
+package = "pip"
+source = "apt"
+
+[[containers.default.dependencies]]
+package = "numpy"
+version = "1.24.0"
+source = "pip"
+
+# Example of a development container with different settings
+[containers.dev]
+name = "dev"
+base_image = "node:18"
+gpu = false
+
+[containers.dev.environment]
+NODE_ENV = "development"
+
+[[containers.dev.dependencies]]
+package = "git"
+source = "apt"
+
+[[containers.dev.dependencies]]
+package = "vim"
+source = "apt"
